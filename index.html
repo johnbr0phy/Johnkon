@@ -1,100 +1,428 @@
-import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import Toolbar from '../components/Toolbar';
-import Canvas from '../components/Canvas';
-import PropertiesPanel from '../components/PropertiesPanel';
-// import ModuleSidebar from '../components/ModuleSidebar'; // Deferred for simplicity
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Konstantin & John's Startup Brainstorm - Explored</title>
+    <style>
+        /* Basic Styling */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f8f9fa; /* Slightly lighter background */
+            color: #343a40;
+        }
 
-// --- Mock Data ---
-// In a real app, this would come from an API based on pageId or be a new template
-const initialPageData = {
-  id: 'new',
-  name: 'New Landing Page',
-  slug: 'new-landing-page',
-  modules: [
-    // Example starting modules (would be loaded from a template ideally)
-    { id: 'mod1', type: 'TextBlock', content: '<h1>Headline Goes Here</h1><p>Edit this text.</p>' },
-    { id: 'mod2', type: 'ImageBlock', src: 'https://via.placeholder.com/800x200', alt: 'Placeholder Image' },
-    { id: 'mod3', type: 'ButtonBlock', text: 'Click Me', href: '#', style: 'primary' }, // Style would be brand-controlled
-    { id: 'mod4', type: 'HtmlEmbedBlock', html: '<!-- Paste Marketo Form Embed Code Here -->'}
-  ]
-};
-// ---------------
+        .container {
+            max-width: 850px; /* Wider container for more text */
+            margin: 20px auto;
+            padding: 30px 40px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
 
-// --- Mock API Calls ---
-const fetchPageData = async (pageId) => {
-  console.log(`Fetching data for page: ${pageId}`);
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 300));
-  if (pageId === 'new') {
-    return JSON.parse(JSON.stringify(initialPageData)); // Return a copy
-  }
-  // TODO: Implement fetching existing page data
-  return JSON.parse(JSON.stringify(initialPageData)); // Fallback for now
-};
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 10px;
+        }
 
-const savePageData = async (pageId, data) => {
-  console.log(`Saving data for page: ${pageId}`, data);
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 500));
-  // In a real app, this would return the saved data, maybe with updated IDs/timestamps
-  return { success: true, pageId: pageId || `saved_${Date.now()}` };
-};
+        p.subtitle {
+            text-align: center;
+            color: #7f8c8d;
+            margin-top: 0;
+            margin-bottom: 30px;
+            font-style: italic;
+        }
 
-const publishPage = async (pageId, data) => {
-    console.log(`Publishing page: ${pageId}`, data);
-    // Simulate API call to backend which handles build/deploy
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    alert(`Page ${pageId} published successfully! (Simulated)`);
-    return { success: true, url: `/published/${data.slug}` }; // Simulated URL
-}
-// ---------------
+        /* Accordion Styling */
+        .accordion-item {
+            border: 1px solid #dee2e6;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            overflow: hidden; /* Ensures border-radius works with content */
+        }
+
+        .accordion-header {
+            background-color: #e9ecef;
+            padding: 15px 20px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background-color 0.3s ease;
+            border-bottom: 1px solid #dee2e6; /* Separator line */
+        }
+        .accordion-header:hover {
+            background-color: #ced4da;
+        }
+
+        .accordion-header h3 {
+            margin: 0;
+            font-size: 1.1em;
+            color: #495057;
+        }
+
+        .accordion-header .indicator {
+            font-size: 1.2em;
+            font-weight: bold;
+            transition: transform 0.3s ease;
+            color: #6c757d;
+        }
+
+        /* Rotate indicator when active */
+         .accordion-item.active .accordion-header .indicator {
+            transform: rotate(180deg);
+         }
+         .accordion-item.active .accordion-header {
+            background-color: #dde4e6; /* Slightly different active header */
+         }
 
 
-function EditorPage() {
-  const { pageId } = useParams();
-  const [pageData, setPageData] = useState(null);
-  const [selectedModuleId, setSelectedModuleId] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
+        .accordion-content {
+            padding: 0 20px; /* Start with padding for spacing, but height 0 */
+            background-color: #fdfdfd;
+            max-height: 0; /* Initially hidden */
+            overflow: hidden;
+            transition: max-height 0.4s ease-out, padding 0.4s ease-out; /* Smooth transition */
+        }
 
-  useEffect(() => {
-    setIsLoading(true);
-    fetchPageData(pageId).then(data => {
-      setPageData(data);
-      setIsLoading(false);
-    });
-  }, [pageId]); // Re-fetch if pageId changes
+        /* Active state for content */
+        .accordion-item.active .accordion-content {
+             /* Set a large enough max-height; adjust if content overflows */
+            max-height: 1000px; /* Adjust as needed for potentially long content */
+            padding: 20px; /* Add padding back when open */
+            border-top: none; /* Remove potential double border */
+        }
 
-  const handleModuleUpdate = (moduleId, updatedProps) => {
-    setPageData(prevData => ({
-      ...prevData,
-      modules: prevData.modules.map(mod =>
-        mod.id === moduleId ? { ...mod, ...updatedProps } : mod
-      )
-    }));
-  };
+        .accordion-content h4 {
+            color: #3498db; /* Accent color for subheadings */
+            margin-top: 0;
+            margin-bottom: 8px;
+        }
+        .accordion-content p, .accordion-content ul {
+            margin-bottom: 12px;
+        }
+        .accordion-content ul {
+            padding-left: 20px;
+        }
+         .accordion-content li {
+            margin-bottom: 5px;
+         }
 
-  const handlePageSettingsUpdate = (settings) => {
-      setPageData(prevData => ({
-          ...prevData,
-          ...settings // e.g., { name: 'New Name' }
-      }));
-  }
 
-  const handleSave = async () => {
-    setIsSaving(true);
-    const result = await savePageData(pageData.id, pageData);
-    if (result.success && result.pageId !== pageData.id) {
-        // Update pageData with new ID if it was a new page
-        setPageData(prev => ({...prev, id: result.pageId}));
-        // Optionally redirect or update URL? Maybe not needed if ID is internal.
-    }
-    setIsSaving(false);
-    alert('Page saved! (Simulated)');
-  };
+        .footer-note {
+            text-align: center;
+            margin-top: 40px;
+            font-size: 0.9em;
+            color: #95a5a6;
+        }
 
-    const handlePublish = async () => {
-        // Ideally save before publishing or ensure it's saved
-        await handleSave(); // Ensure latest is saved
-        setIsSaving(true); // Use saving indicator for publish too
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Startup Ideas</h1>
+        <p class="subtitle">Brainstormed by Konstantin & John (Interactive Exploration)</p>
+
+        <div id="ideas-accordion">
+
+            <!-- Idea 1 -->
+            <div class="accordion-item">
+                <div class="accordion-header">
+                    <h3>Ice breaker</h3>
+                    <span class="indicator">▼</span>
+                </div>
+                <div class="accordion-content">
+                    <h4>Concept Exploration:</h4>
+                    <p>Tools, apps, or services designed to facilitate introductions and initial conversations in various settings (networking events, team onboarding, social gatherings, online communities).</p>
+                    <h4>Potential Angles:</h4>
+                    <ul>
+                        <li>AI-powered conversation starters based on participant profiles (e.g., LinkedIn, event registration data).</li>
+                        <li>Gamified ice breaker activities for teams (physical kits or digital platforms).</li>
+                        <li>Niche ice breakers for specific industries or interest groups.</li>
+                        <li>Wearable tech that subtly signals shared interests or desired connection types.</li>
+                    </ul>
+                    <h4>Related Concepts:</h4>
+                    <p>Networking tools, team building activities, social anxiety solutions, event technology.</p>
+                </div>
+            </div>
+
+            <!-- Idea 2 -->
+            <div class="accordion-item">
+                <div class="accordion-header">
+                    <h3>Common denominator</h3>
+                    <span class="indicator">▼</span>
+                </div>
+                <div class="accordion-content">
+                    <h4>Concept Exploration:</h4>
+                    <p>Finding shared interests, needs, values, or problems among seemingly diverse groups. This could be a platform, a data analysis service, or a community-building methodology.</p>
+                    <h4>Potential Angles:</h4>
+                    <ul>
+                        <li>A platform connecting people based on non-obvious shared interests or life experiences.</li>
+                        <li>Market research tool identifying unmet needs common across different demographics.</li>
+                        <li>Consultancy helping organizations find common ground among employees or stakeholders.</li>
+                        <li>AI analyzing public data (social media, forums) to identify emerging common concerns or interests.</li>
+                    </ul>
+                    <h4>Related Concepts:</h4>
+                    <p>Community building, market segmentation, niche discovery, data analysis, social network analysis.</p>
+                </div>
+            </div>
+
+            <!-- Idea 3 -->
+            <div class="accordion-item">
+                <div class="accordion-header">
+                    <h3>Make it count</h3>
+                    <span class="indicator">▼</span>
+                </div>
+                <div class="accordion-content">
+                    <h4>Concept Exploration:</h4>
+                    <p>Focuses on maximizing impact, value, or meaning from activities, time, or resources. Could relate to productivity, effectiveness, or purpose.</p>
+                    <h4>Potential Angles:</h4>
+                    <ul>
+                        <li>Productivity tool prioritizing tasks based on strategic impact rather than just urgency.</li>
+                        <li>Platform for tracking and quantifying the positive impact of actions (volunteering, sustainable choices, donations).</li>
+                        <li>Corporate wellness program focused on meaningful work and contribution.</li>
+                        <li>Tool helping users align daily activities with long-term goals and values.</li>
+                    </ul>
+                    <h4>Related Concepts:</h4>
+                    <p>Productivity software, goal setting, impact investing, CSR (Corporate Social Responsibility), time management, ROI analysis.</p>
+                </div>
+            </div>
+
+            <!-- Idea 4 -->
+            <div class="accordion-item">
+                <div class="accordion-header">
+                    <h3>Reddit place</h3>
+                    <span class="indicator">▼</span>
+                </div>
+                <div class="accordion-content">
+                    <h4>Concept Exploration:</h4>
+                    <p>Creating a dedicated online community platform, likely focused on a specific niche or offering a different model than existing platforms like Reddit.</p>
+                    <h4>Potential Angles:</h4>
+                    <ul>
+                        <li>A highly moderated, expert-driven community for a specific profession (e.g., "Reddit for Doctors").</li>
+                        <li>A decentralized or blockchain-based community platform giving users more control.</li>
+                        <li>A platform focused on constructive discussion and problem-solving, contrasting with typical social media negativity.</li>
+                        <li>Tools for existing Reddit communities (moderation bots, analytics, cross-posting tools).</li>
+                    </ul>
+                    <h4>Related Concepts:</h4>
+                    <p>Online communities, forum software, niche social networks, knowledge management, decentralized web (Web3).</p>
+                </div>
+            </div>
+
+            <!-- Idea 5 -->
+            <div class="accordion-item">
+                <div class="accordion-header">
+                    <h3>Collaboration</h3>
+                    <span class="indicator">▼</span>
+                </div>
+                <div class="accordion-content">
+                    <h4>Concept Exploration:</h4>
+                    <p>Tools, platforms, or methodologies designed to improve how people work together, share information, and achieve common goals.</p>
+                    <h4>Potential Angles:</h4>
+                    <ul>
+                        <li>Real-time collaborative tools for specific creative fields (e.g., music production, architectural design).</li>
+                        <li>Platform facilitating cross-functional collaboration within large organizations.</li>
+                        <li>Tools focused on asynchronous collaboration for remote/global teams.</li>
+                        <li>AI assistant that summarizes meetings, tracks action items, and facilitates follow-up across different collaboration tools.</li>
+                    </ul>
+                    <h4>Related Concepts:</h4>
+                    <p>Project management software, communication platforms (Slack, Teams), remote work tools, co-creation platforms, knowledge sharing.</p>
+                </div>
+            </div>
+
+             <!-- Idea 6 -->
+             <div class="accordion-item">
+                <div class="accordion-header">
+                    <h3>Real life experiences with digital component</h3>
+                    <span class="indicator">▼</span>
+                </div>
+                <div class="accordion-content">
+                    <h4>Concept Exploration:</h4>
+                    <p>Blending physical activities or events with digital layers to enhance, track, or extend the experience. Often referred to as "phygital".</p>
+                    <h4>Potential Angles:</h4>
+                    <ul>
+                        <li>Augmented Reality (AR) tours for cities, museums, or parks.</li>
+                        <li>Location-based mobile games that require exploring the real world (like Pokemon Go, but potentially for different purposes like education or local business discovery).</li>
+                        <li>Smart event badges or wristbands unlocking digital content or facilitating networking.</li>
+                        <li>Fitness trackers that integrate with social challenges or real-world group activities.</li>
+                        <li>Interactive retail experiences using sensors, screens, and mobile apps.</li>
+                    </ul>
+                    <h4>Related Concepts:</h4>
+                    <p>Augmented Reality (AR), Mixed Reality (MR), Internet of Things (IoT), experiential marketing, gamification, location-based services, event technology.</p>
+                </div>
+            </div>
+
+             <!-- Idea 7 -->
+             <div class="accordion-item">
+                <div class="accordion-header">
+                    <h3>Tune out the noise</h3>
+                    <span class="indicator">▼</span>
+                </div>
+                <div class="accordion-content">
+                    <h4>Concept Exploration:</h4>
+                    <p>Tools or services aimed at helping individuals manage information overload, reduce distractions, and focus on what matters.</p>
+                    <h4>Potential Angles:</h4>
+                    <ul>
+                        <li>Intelligent notification filtering systems across multiple apps and devices.</li>
+                        <li>AI-powered content summarizers or curators for news and social media feeds.</li>
+                        <li>"Focus mode" apps that block distracting websites/apps during work periods.</li>
+                        <li>Digital wellness platforms promoting healthier tech habits.</li>
+                        <li>Hardware solutions (e.g., minimalist phones, ambient displays showing only essential info).</li>
+                    </ul>
+                    <h4>Related Concepts:</h4>
+                    <p>Digital wellbeing, focus apps, productivity tools, mindfulness, information management, content curation, ad/tracker blocking.</p>
+                </div>
+            </div>
+
+             <!-- Idea 8 -->
+             <div class="accordion-item">
+                <div class="accordion-header">
+                    <h3>Focus on the now</h3>
+                    <span class="indicator">▼</span>
+                </div>
+                <div class="accordion-content">
+                    <h4>Concept Exploration:</h4>
+                    <p>Encouraging presence, mindfulness, and engagement with the current moment, task, or interaction. Similar to "Tune out the noise" but potentially more focused on mindfulness and immediate context.</p>
+                    <h4>Potential Angles:</h4>
+                    <ul>
+                        <li>Mindfulness and meditation apps with short, context-aware exercises.</li>
+                        <li>Real-time dashboard displaying only the most immediately relevant information for a specific role or task.</li>
+                        <li>Communication tools prioritizing synchronous or immediate interaction over asynchronous backlog.</li>
+                        <li>Ambient devices or experiences designed to gently pull attention to the present moment.</li>
+                        <li>Pomodoro timers or task management tools emphasizing single-tasking.</li>
+                    </ul>
+                    <h4>Related Concepts:</h4>
+                    <p>Mindfulness, meditation, presence, real-time data, task management, flow state, cognitive load reduction.</p>
+                </div>
+            </div>
+
+             <!-- Idea 9 -->
+             <div class="accordion-item">
+                <div class="accordion-header">
+                    <h3>Pay it forward</h3>
+                    <span class="indicator">▼</span>
+                </div>
+                <div class="accordion-content">
+                    <h4>Concept Exploration:</h4>
+                    <p>Building systems or communities based on non-transactional giving, reciprocity, and acts of kindness.</p>
+                    <h4>Potential Angles:</h4>
+                    <ul>
+                        <li>Platform connecting people needing help with those willing to offer skills or time for free, with an encouragement (but not requirement) for recipients to help others later.</li>
+                        <li>A "gift economy" marketplace for goods or services.</li>
+                        <li>Corporate social responsibility platform facilitating employee volunteering and tracking ripple effects.</li>
+                        <li>Local community app focused on mutual aid and neighborly support.</li>
+                        <li>Digital system for anonymously gifting small items or services (e.g., a coffee, a short proofread).</li>
+                    </ul>
+                    <h4>Related Concepts:</h4>
+                    <p>Gift economy, mutual aid, volunteering platforms, community building, social impact, alternative currencies/economies.</p>
+                </div>
+            </div>
+
+             <!-- Idea 10 -->
+             <div class="accordion-item">
+                <div class="accordion-header">
+                    <h3>Digital graffiti walls</h3>
+                    <span class="indicator">▼</span>
+                </div>
+                <div class="accordion-content">
+                    <h4>Concept Exploration:</h4>
+                    <p>Collaborative digital spaces where users can express themselves, often visually and sometimes anonymously or ephemerally.</p>
+                    <h4>Potential Angles:</h4>
+                    <ul>
+                        <li>AR application allowing users to leave persistent or temporary digital "tags" or art visible to others in specific locations.</li>
+                        <li>Interactive digital displays at events or public spaces where attendees can post messages, drawings, or photos in real-time.</li>
+                        <li>Collaborative online whiteboard focused on brainstorming and visual expression, perhaps with anonymity options.</li>
+                        <li>A social platform centered around creating collaborative, evolving digital art pieces.</li>
+                    </ul>
+                    <h4>Related Concepts:</h4>
+                    <p>Digital art, collaborative tools, augmented reality (AR), public displays, interactive installations, social media, online whiteboards.</p>
+                </div>
+            </div>
+
+             <!-- Idea 11 -->
+             <div class="accordion-item">
+                <div class="accordion-header">
+                    <h3>Exchange tools in person</h3>
+                    <span class="indicator">▼</span>
+                </div>
+                <div class="accordion-content">
+                    <h4>Concept Exploration:</h4>
+                    <p>Facilitating the borrowing, lending, or sharing of physical tools and equipment within a community, often leveraging a digital platform for coordination.</p>
+                    <h4>Potential Angles:</h4>
+                    <ul>
+                        <li>A "Library of Things" platform: software for managing inventory, memberships, and checkouts for a physical tool library.</li>
+                        <li>Peer-to-peer tool rental marketplace connecting owners with renters locally (with insurance/trust mechanisms).</li>
+                        <li>Subscription box service providing access to specialized tools for specific projects (DIY, crafting, cooking).</li>
+                        <li>Organizing and managing shared tool sheds or maker spaces for neighborhoods or apartment complexes.</li>
+                    </ul>
+                    <h4>Related Concepts:</h4>
+                    <p>Sharing economy, Library of Things, tool library, peer-to-peer lending, maker spaces, community workshops, logistics.</p>
+                </div>
+            </div>
+
+            <!-- Idea 12 -->
+            <div class="accordion-item">
+                <div class="accordion-header">
+                    <h3>Make us proud</h3>
+                    <span class="indicator">▼</span>
+                </div>
+                <div class="accordion-content">
+                    <h4>Concept Exploration:</h4>
+                    <p>This is more abstract, likely referring to building a company or product with a strong sense of purpose, positive impact, or high quality that instills pride in its creators, users, and stakeholders.</p>
+                    <h4>Potential Angles:</h4>
+                    <ul>
+                        <li>Building a purpose-driven company focused on measurable social or environmental good.</li>
+                        <li>Creating products known for exceptional craftsmanship, durability, and user delight.</li>
+                        <li>Developing internal tools or culture initiatives that foster employee pride and engagement.</li>
+                        <li>A platform for individuals or groups to showcase achievements they are proud of (beyond typical resumes or social media bragging).</li>
+                        <li>Focusing on ethical practices (data privacy, fair labor, sustainability) as a core differentiator that builds brand pride.</li>
+                    </ul>
+                    <h4>Related Concepts:</h4>
+                    <p>Purpose-driven business, social enterprise, B-Corp, brand reputation, company culture, employee engagement, customer loyalty, quality management, ethics.</p>
+                </div>
+            </div>
+
+        </div> <!-- /#ideas-accordion -->
+
+        <p class="footer-note">Click on any idea to expand and see initial thoughts/research.</p>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const accordionItems = document.querySelectorAll('.accordion-item');
+
+            accordionItems.forEach(item => {
+                const header = item.querySelector('.accordion-header');
+
+                header.addEventListener('click', () => {
+                    const currentlyActive = document.querySelector('.accordion-item.active');
+
+                    // If the clicked item is already active, close it.
+                    if (currentlyActive && currentlyActive === item) {
+                        currentlyActive.classList.remove('active');
+                    } else {
+                        // Close the previously active item (if one exists and it's not the one being clicked)
+                        if (currentlyActive) {
+                            currentlyActive.classList.remove('active');
+                        }
+                        // Open the clicked item
+                        item.classList.add('active');
+                    }
+                });
+            });
+
+             // Optional: Automatically open the first item on load
+             // if (accordionItems.length > 0) {
+             //     accordionItems[0].classList.add('active');
+             // }
+        });
+    </script>
+
+</body>
+</html>

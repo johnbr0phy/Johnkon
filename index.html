@@ -1,239 +1,100 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>J&K Idea Incubator - Interactive Visualization</title>
-    <!-- Import Vis.js Network CSS and JS -->
-    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
-    <style type="text/css">
-        body {
-            font-family: sans-serif;
-            background-color: #f4f4f4;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            flex-direction: column;
-            height: 100vh; /* Use full viewport height */
-        }
-        #mynetwork {
-            flex-grow: 1; /* Allow network graph to take available space */
-            border: 1px solid lightgray;
-            background-color: #ffffff;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-        #header {
-            padding: 15px 25px;
-            background-color: #333;
-            color: white;
-            text-align: center;
-        }
-        #header h1 {
-            margin: 0 0 5px 0;
-            font-size: 1.8em;
-        }
-        #header p {
-            margin: 0;
-            font-size: 0.9em;
-        }
-         #infoPanel {
-            padding: 10px 15px;
-            background-color: #e9e9e9;
-            border-top: 1px solid lightgray;
-            min-height: 50px; /* Ensure it has some height even when empty */
-            font-size: 0.9em;
-            color: #333;
-        }
-        #infoPanel strong {
-            display: block;
-            margin-bottom: 5px;
-            color: #000;
-        }
-        /* Vis.js Tooltip Styling (Optional but Recommended) */
-        .vis-tooltip {
-            position: absolute;
-            visibility: hidden;
-            padding: 5px;
-            white-space: nowrap;
-            font-family: sans-serif;
-            font-size: 14px;
-            color: #000;
-            background-color: #f5f4ed;
-            border-radius: 3px;
-            border: 1px solid #808074;
-            box-shadow: 3px 3px 10px rgba(0, 0, 0, 0.2);
-            z-index: 10; /* Ensure tooltip is on top */
-        }
+import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
+import Toolbar from '../components/Toolbar';
+import Canvas from '../components/Canvas';
+import PropertiesPanel from '../components/PropertiesPanel';
+// import ModuleSidebar from '../components/ModuleSidebar'; // Deferred for simplicity
 
-    </style>
-</head>
-<body>
+// --- Mock Data ---
+// In a real app, this would come from an API based on pageId or be a new template
+const initialPageData = {
+  id: 'new',
+  name: 'New Landing Page',
+  slug: 'new-landing-page',
+  modules: [
+    // Example starting modules (would be loaded from a template ideally)
+    { id: 'mod1', type: 'TextBlock', content: '<h1>Headline Goes Here</h1><p>Edit this text.</p>' },
+    { id: 'mod2', type: 'ImageBlock', src: 'https://via.placeholder.com/800x200', alt: 'Placeholder Image' },
+    { id: 'mod3', type: 'ButtonBlock', text: 'Click Me', href: '#', style: 'primary' }, // Style would be brand-controlled
+    { id: 'mod4', type: 'HtmlEmbedBlock', html: '<!-- Paste Marketo Form Embed Code Here -->'}
+  ]
+};
+// ---------------
 
-<div id="header">
-    <h1>John & Konstantin: Idea Incubator</h1>
-    <p>Interactive visualization of brainstormed ideas and potential project concepts. Hover over nodes for details.</p>
-</div>
+// --- Mock API Calls ---
+const fetchPageData = async (pageId) => {
+  console.log(`Fetching data for page: ${pageId}`);
+  // Simulate API delay
+  await new Promise(resolve => setTimeout(resolve, 300));
+  if (pageId === 'new') {
+    return JSON.parse(JSON.stringify(initialPageData)); // Return a copy
+  }
+  // TODO: Implement fetching existing page data
+  return JSON.parse(JSON.stringify(initialPageData)); // Fallback for now
+};
 
-<div id="mynetwork"></div>
+const savePageData = async (pageId, data) => {
+  console.log(`Saving data for page: ${pageId}`, data);
+  // Simulate API delay
+  await new Promise(resolve => setTimeout(resolve, 500));
+  // In a real app, this would return the saved data, maybe with updated IDs/timestamps
+  return { success: true, pageId: pageId || `saved_${Date.now()}` };
+};
 
-<div id="infoPanel">
-    <strong>Hover over a node</strong> to see its description and connections.
-</div>
+const publishPage = async (pageId, data) => {
+    console.log(`Publishing page: ${pageId}`, data);
+    // Simulate API call to backend which handles build/deploy
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    alert(`Page ${pageId} published successfully! (Simulated)`);
+    return { success: true, url: `/published/${data.slug}` }; // Simulated URL
+}
+// ---------------
 
-<script type="text/javascript">
-    // --- 1. Define Data ---
 
-    // Brainstorm Ideas (Group 1)
-    const brainstormIdeas = [
-        { id: 'ice', label: 'Ice breaker', group: 1, title: 'Raw Idea: Facilitating initial connection.' },
-        { id: 'common', label: 'Common denominator', group: 1, title: 'Raw Idea: Finding shared interests/needs.' },
-        { id: 'count', label: 'Make it count', group: 1, title: 'Raw Idea: Focusing on impact and value.' },
-        { id: 'reddit', label: 'Reddit place', group: 1, title: 'Raw Idea: A space for community/discussion.' },
-        { id: 'collab', label: 'Collaboration', group: 1, title: 'Raw Idea: Working together effectively.' },
-        { id: 'real', label: 'Real life experiences + digital', group: 1, title: 'Raw Idea: Blending physical and digital.' },
-        { id: 'noise', label: 'Tune out the noise', group: 1, title: 'Raw Idea: Reducing distractions, focusing.' },
-        { id: 'now', label: 'Focus on the now', group: 1, title: 'Raw Idea: Encouraging presence.' },
-        { id: 'pay', label: 'Pay it forward', group: 1, title: 'Raw Idea: Promoting positive actions/kindness.' },
-        { id: 'graffiti', label: 'Digital graffiti walls', group: 1, title: 'Raw Idea: Location-based digital expression.' },
-        { id: 'exchange', label: 'Exchange tools in person', group: 1, title: 'Raw Idea: Facilitating physical resource sharing.' },
-        { id: 'proud', label: 'Make us proud', group: 1, title: 'Raw Idea: Building something meaningful/aspirational.' }
-    ];
+function EditorPage() {
+  const { pageId } = useParams();
+  const [pageData, setPageData] = useState(null);
+  const [selectedModuleId, setSelectedModuleId] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
 
-    // Potential Project Concepts (Group 2) derived from clusters
-    const projectConcepts = [
-        { id: 'projA', label: 'Common Ground Finder', group: 2, title: 'Project Concept: Digital tool to spark IRL conversations based on shared interests.', description: 'Inspired by Ice Breaker & Common Denominator. Helps people connect in physical spaces.' },
-        { id: 'projB', label: 'Hyperlocal Skill/Tool Exchange', group: 2, title: 'Project Concept: Platform for physical exchange of tools/skills in a local community.', description: 'Inspired by Exchange Tools, Collaboration & Pay It Forward. Digital facilitates, value is IRL.'},
-        { id: 'projC', label: 'Structured Serendipity Sessions', group: 2, title: 'Project Concept: Curated interactions (online/offline) for focused collaboration.', description: 'Inspired by Collaboration & Ice Breaker. Aims for deeper connections than typical networking.'},
-        { id: 'projD', label: 'Pay It Forward Platform', group: 2, title: 'Project Concept: Community platform tracking and encouraging acts of kindness.', description: 'Inspired by Pay It Forward, Make It Count & Make Us Proud. Focuses on positive reinforcement.'},
-        { id: 'projE', label: 'Deep Work Hub / Ritual Builder', group: 2, title: 'Project Concept: Tools/community to cultivate focus and block distractions.', description: 'Inspired by Tune Out Noise, Focus on Now & Make It Count. Helps individuals/teams achieve deep work.'},
-        { id: 'projF', label: 'Project "Make Us Proud" Incubator', group: 2, title: 'Project Concept: Platform for proposing/supporting projects with positive outcomes.', description: 'Inspired by Make Us Proud, Collaboration & Make It Count. Community support and accountability.'},
-        { id: 'projG', label: 'AR Story Trails / Digital Graffiti', group: 2, title: 'Project Concept: AR app for location-based digital content & expression.', description: 'Inspired by Real Life + Digital & Digital Graffiti Walls. Overlays digital information/art onto the real world.'},
-        { id: 'projH', label: 'Hybrid Community Hub', group: 2, title: 'Project Concept: Platform for communities with both online and offline activities.', description: 'Inspired by Reddit Place, Real Life + Digital & Collaboration. Integrates online discussion with offline event planning.'}
-    ];
-
-    // Combine Nodes
-    const nodes = new vis.DataSet([...brainstormIdeas, ...projectConcepts]);
-
-    // Define Edges (Connections between Brainstorm Ideas and Project Concepts)
-    const edges = new vis.DataSet([
-        // Connections to ProjA
-        { from: 'ice', to: 'projA' }, { from: 'common', to: 'projA' },
-        // Connections to ProjB
-        { from: 'exchange', to: 'projB' }, { from: 'collab', to: 'projB' }, { from: 'pay', to: 'projB' },
-        // Connections to ProjC
-        { from: 'collab', to: 'projC' }, { from: 'ice', to: 'projC' },
-        // Connections to ProjD
-        { from: 'pay', to: 'projD' }, { from: 'count', to: 'projD' }, { from: 'proud', to: 'projD' },
-        // Connections to ProjE
-        { from: 'noise', to: 'projE' }, { from: 'now', to: 'projE' }, { from: 'count', to: 'projE' },
-        // Connections to ProjF
-        { from: 'proud', to: 'projF' }, { from: 'collab', to: 'projF' }, { from: 'count', to: 'projF' },
-        // Connections to ProjG
-        { from: 'real', to: 'projG' }, { from: 'graffiti', to: 'projG' },
-        // Connections to ProjH
-        { from: 'reddit', to: 'projH' }, { from: 'real', to: 'projH' }, { from: 'collab', to: 'projH' }
-    ]);
-
-    // --- 2. Configure Options ---
-    const options = {
-        nodes: {
-            shape: 'dot',
-            size: 18,
-            font: {
-                size: 14,
-                color: '#333'
-            },
-            borderWidth: 2
-        },
-        edges: {
-            width: 1,
-            color: { inherit: 'from' },
-            arrows: { to: { enabled: false } } // No arrows for less clutter
-        },
-        groups: {
-            1: { // Brainstorm Ideas
-                color: { background: '#97C2FC', border: '#2B7CE9' },
-                shape: 'ellipse' // Use ellipse for raw ideas
-            },
-            2: { // Project Concepts
-                color: { background: '#FFA500', border: '#FF6347' }, // Orange/Tomato
-                shape: 'box', // Use box for derived concepts
-                 font: { size: 15, face: 'arial', color: 'black', bold: true }
-            }
-        },
-        physics: {
-            enabled: true,
-            solver: 'barnesHut', // Good for clustering
-            barnesHut: {
-              gravitationalConstant: -15000, // Pushes nodes apart more
-              centralGravity: 0.1,         // Pulls towards center slightly
-              springLength: 120,           // Ideal edge length
-              springConstant: 0.05,
-              damping: 0.09
-            },
-            stabilization: {
-                iterations: 1000 // More iterations for better layout
-            }
-        },
-        interaction: {
-            hover: true, // Enable hover effects
-            tooltipDelay: 200, // Delay before tooltip appears
-            navigationButtons: true, // Adds zoom/fit buttons
-            keyboard: true // Enable keyboard navigation
-        },
-        layout: {
-           // hierarchical: false // Ensure force-directed layout
-        }
-    };
-
-    // --- 3. Create Network ---
-    const container = document.getElementById('mynetwork');
-    const data = { nodes: nodes, edges: edges };
-    const network = new vis.Network(container, data, options);
-
-    // --- 4. Add Interactivity (Info Panel) ---
-    const infoPanel = document.getElementById('infoPanel');
-
-    network.on('hoverNode', function (params) {
-        const nodeId = params.node;
-        const node = nodes.get(nodeId); // Get node data from the DataSet
-
-        if (node) {
-            let infoHtml = `<strong>${node.label}</strong>`;
-            if (node.description) {
-                infoHtml += `${node.description}<br>`;
-            } else {
-                infoHtml += `${node.title}<br>`; // Use title if no description
-            }
-
-            // Find connected nodes
-            const connectedNodes = network.getConnectedNodes(nodeId);
-            if (connectedNodes.length > 0) {
-                infoHtml += '<br><em>Connects to:</em> ';
-                let connectedLabels = [];
-                 connectedNodes.forEach(connectedId => {
-                    const connectedNode = nodes.get(connectedId);
-                    if(connectedNode) {
-                        connectedLabels.push(connectedNode.label);
-                    }
-                 });
-                 infoHtml += connectedLabels.join(', ');
-            }
-             infoPanel.innerHTML = infoHtml;
-        }
+  useEffect(() => {
+    setIsLoading(true);
+    fetchPageData(pageId).then(data => {
+      setPageData(data);
+      setIsLoading(false);
     });
+  }, [pageId]); // Re-fetch if pageId changes
 
-    network.on('blurNode', function (params) {
-        // Reset panel when not hovering over a node
-        infoPanel.innerHTML = '<strong>Hover over a node</strong> to see its description and connections.';
-    });
+  const handleModuleUpdate = (moduleId, updatedProps) => {
+    setPageData(prevData => ({
+      ...prevData,
+      modules: prevData.modules.map(mod =>
+        mod.id === moduleId ? { ...mod, ...updatedProps } : mod
+      )
+    }));
+  };
 
-    // Optional: Stabilize layout then turn off physics for performance
-     network.on("stabilizationIterationsDone", function () {
-        network.setOptions( { physics: false } );
-    });
+  const handlePageSettingsUpdate = (settings) => {
+      setPageData(prevData => ({
+          ...prevData,
+          ...settings // e.g., { name: 'New Name' }
+      }));
+  }
 
-</script>
+  const handleSave = async () => {
+    setIsSaving(true);
+    const result = await savePageData(pageData.id, pageData);
+    if (result.success && result.pageId !== pageData.id) {
+        // Update pageData with new ID if it was a new page
+        setPageData(prev => ({...prev, id: result.pageId}));
+        // Optionally redirect or update URL? Maybe not needed if ID is internal.
+    }
+    setIsSaving(false);
+    alert('Page saved! (Simulated)');
+  };
 
-</body>
-</html>
+    const handlePublish = async () => {
+        // Ideally save before publishing or ensure it's saved
+        await handleSave(); // Ensure latest is saved
+        setIsSaving(true); // Use saving indicator for publish too
